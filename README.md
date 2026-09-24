@@ -683,6 +683,12 @@ the page never leaving the machine.
 
 ---
 
+## GlassBox plugins for Claude Code and ChatGPT-compatible hosts
+
+[GlassBox](.agents/plugins/glassbox/README.md) packages the local SwiftBrowse MCP tools for both plugin ecosystems. Its browser decision response includes a compact receipt with the selected operation and target, their probabilities, and the top alternatives. The receipt exposes the model's ranking; it is not a generated rationale or a correctness guarantee. The plugin does not execute browser actions.
+
+See the [GlassBox install guide](.agents/plugins/glassbox/README.md). A public ChatGPT directory listing needs a deployed HTTPS MCP endpoint and platform review; the repository package supports local plugin installation and testing.
+
 ## Compatibility with jev-ultrafast and other Jev tooling
 
 [browser-use/jev-ultrafast](https://github.com/browser-use/jev-ultrafast) posts
