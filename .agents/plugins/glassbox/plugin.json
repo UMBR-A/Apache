@@ -1,0 +1,37 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "glassbox",
+  "version": "0.4.0",
+  "description": "Auditable local browser decisions with ranked alternatives.",
+  "author": {
+    "name": "UMBR-A"
+  },
+  "homepage": "https://github.com/UMBR-A/Apache/tree/main/.agents/plugins/glassbox",
+  "repository": "https://github.com/UMBR-A/Apache",
+  "license": "Apache-2.0",
+  "keywords": [
+    "browser",
+    "decision",
+    "mcp",
+    "local-first",
+    "audit"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "GlassBox",
+        "shortDescription": "See the decision and strongest alternatives.",
+        "longDescription": "Use the local SwiftBrowse decision model to pick one next browser action. Each result includes the chosen action, its probability, and the top alternatives; these scores are model preferences, not explanations or guarantees.",
+        "developerName": "UMBR-A",
+        "category": "Productivity",
+        "capabilities": [
+          "Read"
+        ],
+        "defaultPrompt": [
+          "Use GlassBox to decide the next action from this current page observation, then show the probability receipt.",
+          "Use GlassBox to inspect the top browser action candidates without executing one."
+        ]
+      }
+    }
+  }
+}
