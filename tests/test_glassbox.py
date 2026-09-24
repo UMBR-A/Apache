@@ -4,8 +4,11 @@ from __future__ import annotations
 
 import json
 import unittest
+from pathlib import Path
 
 from localdecide.mcp_server import _Session, _rank_options
+
+ROOT = Path(__file__).resolve().parents[1]
 
 
 class TestGlassBoxRanking(unittest.TestCase):
@@ -56,6 +59,32 @@ class TestGlassBoxRanking(unittest.TestCase):
         self.assertEqual(payload["receipt"]["target"]["label"], "Search")
         self.assertEqual(payload["receipt"]["target"]["alternatives"][1]["label"], "Home")
         self.assertEqual(payload["receipt"]["offered_elements"], 2)
+
+
+class TestGlassBoxManifests(unittest.TestCase):
+    def test_plugin_manifests_are_valid_json_and_have_local_server(self):
+        paths = [
+            ".claude-plugin/marketplace.json",
+            ".agents/plugins/marketplace.json",
+            ".agents/plugins/glassbox/plugin.json",
+            ".agents/plugins/glassbox/mcp.json",
+            ".agents/plugins/glassbox/.claude-plugin/plugin.json",
+            ".agents/plugins/glassbox/.mcp.json",
+        ]
+        manifests = {
+            path: json.loads((ROOT / path).read_text(encoding="utf-8"))
+            for path in paths
+        }
+        self.assertEqual(manifests[".claude-plugin/marketplace.json"]["plugins"][0]["name"], "glassbox")
+        self.assertEqual(manifests[".agents/plugins/marketplace.json"]["plugins"][0]["name"], "glassbox")
+        self.assertEqual(
+            manifests[".agents/plugins/glassbox/mcp.json"]["mcpServers"]["glassbox"]["command"],
+            "uvx",
+        )
+        self.assertEqual(
+            manifests[".agents/plugins/glassbox/.mcp.json"]["mcpServers"]["glassbox"]["command"],
+            "uvx",
+        )
 
 
 if __name__ == "__main__":
