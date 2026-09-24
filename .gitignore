@@ -1,0 +1,35 @@
+# Build artifacts
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.eggs/
+
+# Environments
+.venv/
+venv/
+env/
+
+# Test / tooling caches
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Editors and OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Local model caches (large; downloaded on demand)
+*.safetensors
+.cache/
+models/
+
+# Scratch
+*.log
+/tmp/
+CODEX_3080_FINETUNE_TASK.md

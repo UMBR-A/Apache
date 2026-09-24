@@ -1,0 +1,145 @@
+# laya-browser-agent
+
+**[English](README.md)** | [中文](README.zh-CN.md) | [日本語](README.ja.md) | [Español](README.es.md)
+
+> 本页面是 laya-browser-agent 的中文说明。英文原版（最新）见 [README.md](README.md)。
+
+**浏览器 agent 决策，由 Laya 驱动 —— 开源的 System 1 模型。TypeSafe Jev 的本地开源替代：无云端、无 API key、无截图。**
+
+[![tests](https://github.com/ChenneyZhuang/laya-browser-agent/actions/workflows/tests.yml/badge.svg)](https://github.com/ChenneyZhuang/laya-browser-agent/actions/workflows/tests.yml)
+[![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
+
+决策模型对状态回答结构化问题，返回**校准过的概率**而非生成的文字——因此它不可能幻觉出一条指令。这正是浏览器 agent "决定"那一半的理想形态：给它一张页面上可交互元素的编号表，它告诉你下一步该执行什么操作、作用于哪个元素。
+
+本项目把这类模型接进这个角色——**完全在本地运行**，适配你已有的任何 agent。
+
+## 实测数据（M4, 16 GB）
+
+| 指标 | 数值 |
+|---|---|
+| 短文本决策 | 10–30 ms |
+| 浏览器单步（限定 20 个元素） | ~333 ms |
+| 吞吐量 | 最高 ~100 决策/秒 |
+| 多语言目标（grounding 开启） | 9 个命中 8 个 |
+| 费用 | **$0**（无 API，无计量）|
+| 页面内容发送到服务器 | **零** |
+
+## 安装
+
+> **安装提示**：PyPI 版本正在跟进仓库。当前请用 `git clone https://github.com/ChenneyZhuang/laya-browser-agent && cd laya-browser-agent && pip install -e '.[all]'` 安装（Apple Silicon 用 `[all]`，其他平台用 `[torch]`）。
+
+```bash
+# Apple Silicon（MLX，最快路径）
+pip install 'laya-browser-agent[mlx]'
+
+# Linux / Windows / Intel Mac（同样权重，PyTorch 运行时）
+pip install 'laya-browser-agent[torch]'
+
+# 浏览器驱动
+pip install 'laya-browser-agent[playwright]' && playwright install chromium
+```
+
+自检（自动识别芯片与内存，并做一次真实决策的冒烟测试）：
+
+```bash
+localdecide doctor
+```
+
+模型首次使用时下载一次（约 650 MB），之后全部离线。
+
+## 快速上手
+
+```python
+from localdecide import BrowserDecider
+from localdecide.drivers import PlaywrightDriver
+
+with PlaywrightDriver(start_url="https://en.wikipedia.org/wiki/Main_Page") as driver:
+    run = BrowserDecider().run(driver, "Click the 'Random article' link in the navigation.")
+    print(run.stopped, run.summary()["median_decision_ms"], "ms/决策")
+```
+
+### 与官方 Jev 的正面对决：实测数据
+
+`examples/diagnostics/jev_head_to_head.py`（单步）与 `jev_flow_h2h.py`（多步完整流程）把同样的任务分别喂给本地 Laya v10s 与官方 jev-1.13.0：
+
+| 单步零上下文（12 题 / 6 语言） | 本地 v10s | 官方 Jev |
+|---|---|---|
+| 严格元素命中 | 4/12 | **8/12** |
+| 跨语言目标 | 1/6 | **5/6** |
+| 中位延迟 | **618ms** | 716ms |
+| 平均置信度 | 0.90（过自信）| 0.81 |
+
+多步流程：**两个引擎目前都无法独立完成脚本化购物流程**——难点在"输入搜索词之后、结果出现之前"的状态；本地 v10s 在商品可见时仍会重复点击 Search（p=0.84），官方 Jev 会答 BLOCKED 或以 0.45 的低置信度选对元素。本地 v10s 完整走通了中文导航流程（帮助中心→DONE），官方 Jev 到达同元素但未发 DONE。
+
+**结论**：要开箱准确率（尤其跨语言）→ 官方 Jev 每次约 $0.000017；要隐私/离线/免费大量调用 → 本地版延迟相当、置信度校准更需打磨，且需要 harness 循环配合才能进入其训练场景。
+
+### 已对官方 Jev API 实测验证
+
+本项目的 `systemone` 方言已于 2026-09-22 对 TypeSafe 生产端点（`api.typesafe.ai/v1/systemone`，模型 `jev-1.13.0`）完整实测。注意：**每种题型都必须带 `criteria` 字段**——`choice` 的 `criteria` 是「选项 → 评分说明」的映射（不是字符串），`score` 的是数组。同一份请求体把 URL 换成本地 `localdecide serve` 即可用本地 Laya 模型得到相同结构的回答，切换只需改一个 base URL。
+
+
+
+**文本分类**（`jev_text_h2h.py`，真实业务文本，21 例）：
+
+| 任务 | 本地 v10s | 官方 Jev |
+|---|---|---|
+| 泳池线索 `relevant` 判断 | 3/7 正确 | **7/7** |
+| 泳池线索质量分（0-4）| 偏低（1.0-2.0）| **校准良好（2.4-3.7）** |
+| 中文短信：交易识别/类型 | **6/8** | 6/8 |
+| 中文短信：**钓鱼诈骗识别** | **0/3** | **3/3** |
+| 鲁棒性（空文本/5k长文/干扰措辞）| 3/3 | 3/3 |
+| 中位延迟 | **36ms** | 738ms |
+
+钓鱼识别值得警惕：「妈妈，我手机坏了…快转5000」这类经典骗局本地只给 p=0.14，红包诈骗 p=0.23——两个都会放行；官方 Jev 都是 p=0.96。**任何涉安全路由（诈骗/滥用）场景，当前本地模型不能单独信任。**
+
+**浏览器边缘场景**（`jev_edge_h2h.py`，9 例，正确答案往往是"不动"）：本地 4/9、官方 5/9，且失败方向相反——本地是"先点了再说"型：让删掉整个网站它就真去点「Delete my account」（p=0.93）、对已勾选/禁用元素照样出手，且置信度全都在 0.9 上下；官方会拦不可能目标但也会误伤正常目标。两个引擎目前都没有可靠的"这个目标做不到"概念，今天的兜底是 harness 自己的守卫（禁用元素检查、确认门）。
+
+四组测试的实用结论：准确率与安全校准优先→官方 Jev；延迟（快 10-20 倍）、隐私、免费大量调用→本地版 + harness 守卫补偿。中文 grounding/钓鱼识别/克制能力正是微调该打的方向。
+## 与 Jev / Laya 的关系
+
+| | [TypeSafe Jev](https://docs.typesafe.ai) | [Laya](https://github.com/NandhaKishorM/laya) | **laya-browser-agent** |
+|---|---|---|---|
+| 权重 | 闭源，仅 API | 开放，Apache-2.0 | 运行 Laya 开放权重 |
+| 运行位置 | TypeSafe 云端 | 任何 PyTorch 环境 | **你的机器**（MLX / PyTorch）|
+| 接口格式 | `POST /v1/systemone` | 同一契约 | 同样支持 |
+| 费用 | $0.042/百万输入 token | 免费 | 免费 |
+| 浏览器工具链 | [jev-ultrafast](https://github.com/browser-use/jev-ultrafast)（12.6k★）| — | **内置**：循环、驱动、安全护栏、技能 |
+| 页面内容离开本机 | 是 | 否 | **否** |
+
+如果你看过 Jev 的 "System One" 模型报道，想要同样的理念——结构化、带校准概率的决策而非生成文本——在你自己的浏览器 agent 上本地运行，这就是你要的接线方式。
+
+## 五种使用方式
+
+1. **Python 库** —— `Decider` / `BrowserDecider`
+2. **浏览器 agent 循环** —— Playwright / CDP 驱动，含循环守卫与确认门
+3. **MCP server** —— `localdecide-mcp`，Claude Desktop / Cursor 一段配置接入
+4. **HTTP 服务** —— `localdecide serve`，支持 TypeSafe 兼容的 `/v1/systemone` 方言
+5. **Agent 技能** —— `python3 install_skills.py` 装进 Claude Code / Codex / Cursor / Hermes
+
+## 关键设计
+
+- **模型只能从你观察到的元素里选**——模型输出永远不会变成选择器、坐标或可执行代码
+- **fail-open**：后端错误、超时、格式异常都返回 `Decision(ok=False)`，不阻塞你的流程
+- **置信度门**（默认 0.15）：实测模型会以 6% 置信度去提交空表单，这一门拦住它
+- **开关守卫**：实测模型会以 90% 置信度点掉已勾选的复选框，这一门同样拦住
+- **跨语言 grounding**：中文/日文/阿拉伯文等目标自动过滤异文字干扰项（1/9 → 8/9）
+- **范围优先于提示词**：选项数量是延迟与准确率的最大杠杆（10 个元素 183ms，120 个 1204ms）
+
+### 文献支撑
+
+- [arXiv 2609.23959](https://arxiv.org/abs/2609.23959)（2026-09）：独立同行证据——同款"类型化决策"读出用在诈骗筛查上，数据到位时 AUROC .974、校准误差 .052、单次决策 64.5ms（消费级 GPU）。说明本 README 文本测试里的钓鱼短板是训练数据问题，不是架构天花板。
+- Laya 上游公开的校准基准：13 个任务族 **accuracy 0.753 @ ECE 0.030**（温度校准后）——v10s 浏览器 checkpoint 在浏览器分布之外的文本上没有继承这个校准水平（见上文泳池/短信测试）。
+
+## 已知局限
+
+- 零样本在你的领域上很弱——浏览器检查点好用是因为有人花了 ~5 GPU 小时微调
+- 模型不能写字——`TYPE_TEXT` 需要你提供文字内容
+- 折叠菜单里的元素观察不到——先点开菜单再观察
+- 无法读取 canvas / 影子 DOM 内容（需要在驱动层另行处理）
+- 安全护栏基于关键词，不是保证——涉及金钱/删除/发送的操作请务必提供 `confirm` 回调
+
+完整细节见[英文 README](README.md) 的 Benchmarks、Limitations 和 Reference 部分。
+
+## 许可
+
+Apache-2.0（与其运行的 Laya 模型一致）
