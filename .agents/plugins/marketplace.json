@@ -1,0 +1,22 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/marketplace.schema.json",
+  "name": "swiftbrowse-local",
+  "version": "1.0.0",
+  "description": "Local-first plugins for browser decision transparency.",
+  "plugins": [
+    {
+      "name": "glassbox",
+      "source": {
+        "path": "./glassbox"
+      },
+      "interface": {
+        "displayName": "GlassBox",
+        "shortDescription": "See the decision and strongest alternatives.",
+        "longDescription": "A local-first browser decision plugin for Claude Code and ChatGPT-compatible plugin hosts. Shows ranked choices with probabilities and keeps page data on your machine.",
+        "capabilities": [
+          "Read"
+        ]
+      }
+    }
+  ]
+}
