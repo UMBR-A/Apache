@@ -18,7 +18,7 @@ From the repository root:
 
 ```text
 /plugin marketplace add UMBR-A/Apache
-/plugin install glassbox@swiftbrowse
+/plugin install glassbox@swiftbrowse-plugins
 ```
 
 Open Claude Code's `/mcp` view and confirm the `glassbox` server is connected. Use `/glassbox:inspect <goal>` when a browser observation tool is available. Claude must obtain the current page observation from a browser tool and pass it to `page_decide`; this plugin does not provide a browser driver.
