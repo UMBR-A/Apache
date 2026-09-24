@@ -73,7 +73,9 @@ TOOLS = [
             "Decide the next browser action: give a page observation (url, title, text, and an "
             "actions/elements list from a DOM or accessibility snapshot) plus a goal, and get "
             "the chosen operation (CLICK/TYPE_TEXT/SELECT/SCROLL/WAIT/DONE/BLOCKED) and the "
-            "index of the element to act on. All local; the page never leaves this machine."
+            "index of the element to act on. Returns a GlassBox receipt with the selected "
+            "option and top alternatives with probabilities (not a natural-language rationale). "
+            "All local; the page never leaves this machine."
         ),
         "inputSchema": {
             "type": "object",
@@ -91,6 +93,16 @@ TOOLS = [
         },
     },
 ]
+
+
+def _rank_options(probabilities: Dict[str, float], labels: Dict[str, str] | None = None, limit: int = 3) -> list[Dict[str, Any]]:
+    """Return a compact ranking from validated model probabilities."""
+    labels = labels or {}
+    ranked = sorted(probabilities.items(), key=lambda item: (-float(item[1]), str(item[0])))[:limit]
+    return [
+        {"option": str(option), "label": labels.get(str(option)), "probability": float(probability)}
+        for option, probability in ranked
+    ]
 
 
 class _Session:
@@ -167,12 +179,35 @@ class _Session:
                                    "confidence": answers.confidence("operation"),
                                    "latency_ms": decision.latency_ms, "backend": answers.backend}
             out["routing"] = answers.routing
+
+            # GlassBox receipt: show the model's actual ranking, not a generated
+            # explanation. Probabilities describe model preference, not proof.
+            receipt: Dict[str, Any] = {
+                "operation": {
+                    "selected": operation,
+                    "probability": answers.probabilities("operation").get(operation),
+                    "alternatives": _rank_options(answers.probabilities("operation")),
+                },
+                "target": None,
+                "offered_elements": len(table.by_index()),
+            }
             if operation in ("CLICK", "TYPE_TEXT", "SELECT") and f"{operation.lower()}_target" in answers.raw:
-                target = answers.choice(f"{operation.lower()}_target")
+                target_name = f"{operation.lower()}_target"
+                target = answers.choice(target_name)
                 element = table.by_index().get(target)
+                target_probs = answers.probabilities(target_name)
                 out.update(target=target, label=(element.label if element else ""),
                            handle=(element.handle if element else None))
-                out["confidence"] = min(out["confidence"], answers.confidence(f"{operation.lower()}_target"))
+                out["confidence"] = min(out["confidence"], answers.confidence(target_name))
+                receipt["target"] = {
+                    "selected": target,
+                    "label": element.label if element else "",
+                    "probability": target_probs.get(target),
+                    "alternatives": _rank_options(target_probs, labels={
+                        index: item.label for index, item in table.by_index().items()
+                    }),
+                }
+            out["receipt"] = receipt
             return {"content": [{"type": "text", "text": json.dumps(out, ensure_ascii=False, default=str)}]}
         return self._tool_error(f"unknown tool: {name!r}")
 
