@@ -52,7 +52,7 @@ jobs:
           assert not present, "test leak: model extras installed"
         shell: python
       - name: Contract tests
-        run: python -m pytest tests/test_contract.py tests/test_cascade.py -q -p no:cacheprovider
+        run: python -m pytest tests/test_contract.py tests/test_cascade.py tests/test_glassbox.py -q -p no:cacheprovider
       - name: Memory-safety rules
         run: python -m pytest tests/test_live.py::TestMemorySafety -q -p no:cacheprovider
 

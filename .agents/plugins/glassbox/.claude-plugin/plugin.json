@@ -1,0 +1,18 @@
+{
+  "name": "glassbox",
+  "version": "0.4.0",
+  "description": "Auditable local browser decisions with ranked alternatives.",
+  "author": {
+    "name": "UMBR-A"
+  },
+  "homepage": "https://github.com/UMBR-A/Apache/tree/main/.agents/plugins/glassbox",
+  "repository": "https://github.com/UMBR-A/Apache",
+  "license": "Apache-2.0",
+  "keywords": [
+    "browser",
+    "decision",
+    "mcp",
+    "local-first",
+    "audit"
+  ]
+}
