@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "glassbox": {
+      "command": "uvx",
+      "args": [
+        "--from",
+        "swiftbrowse-agent[torch] @ git+https://github.com/UMBR-A/Apache.git",
+        "swiftbrowse-mcp"
+      ]
+    }
+  }
+}
