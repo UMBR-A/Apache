@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-marketplace.json",
+  "name": "swiftbrowse-plugins",
+  "version": "1.0.0",
+  "description": "Claude Code plugins for SwiftBrowse.",
+  "owner": {
+    "name": "UMBR-A"
+  },
+  "plugins": [
+    {
+      "name": "glassbox",
+      "description": "Auditable local browser decisions with ranked alternatives.",
+      "source": "./.agents/plugins/glassbox",
+      "category": "development",
+      "homepage": "https://github.com/UMBR-A/Apache/tree/main/.agents/plugins/glassbox"
+    }
+  ]
+}
