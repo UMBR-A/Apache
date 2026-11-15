@@ -32,8 +32,34 @@ class Policy:
     allowed_domains: tuple[str, ...]
     max_steps: int = 12
 
+    def __post_init__(self) -> None:
+        if self.max_steps < 1:
+            raise Refused("max_steps must be positive")
+        if not self.allowed_domains:
+            raise Refused("At least one allowed domain is required")
+        for domain in self.allowed_domains:
+            if not isinstance(domain, str) or not domain or domain != domain.lower().strip().rstrip("."):
+                raise Refused("Allowed domains must be lowercase, complete hostnames")
+            if len(domain) > 253 or not re.fullmatch(r"[a-z0-9.-]+", domain):
+                raise Refused("Invalid allowed domain")
+            parts = domain.split(".")
+            if len(parts) < 2 or any(not label or len(label) > 63 or
+                                      label.startswith("-") or label.endswith("-") for label in parts):
+                raise Refused("Allowed domains must be valid multi-label hostnames")
+            try:
+                ipaddress.ip_address(domain)
+            except ValueError:
+                pass
+            else:
+                raise Refused("Use a public DNS hostname for the allowlist")
+
     def check_url(self, url: str) -> str:
-        parts = urlsplit(url)
+        try:
+            parts = urlsplit(url)
+            # Force malformed ports to fail before any navigation.
+            _ = parts.port
+        except ValueError as exc:
+            raise Refused("Malformed URL") from exc
         if parts.scheme not in {"http", "https"} or not parts.hostname:
             raise Refused("Only HTTP(S) websites are permitted")
         if parts.username or parts.password:

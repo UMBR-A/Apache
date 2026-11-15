@@ -7,6 +7,7 @@ from urllib.parse import urljoin
 from urllib.request import Request, urlopen
 
 from .core import Agent, Policy, Receipts, Refused
+from .network import guarded_context
 
 
 class Ollama:
@@ -83,18 +84,9 @@ async def execute(args):
     policy = Policy(tuple(s.strip().lower() for s in args.allow_domain), args.max_steps)
     policy.check_url(args.url)
     async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=not args.show_browser)
-        context = await browser.new_context(accept_downloads=False)
-        async def guard(route):
-            request = route.request
-            if request.is_navigation_request():
-                try:
-                    policy.check_url(request.url)
-                except Refused:
-                    await route.abort()
-                    return
-            await route.continue_()
-        await context.route("**/*", guard)
+        browser = await p.chromium.launch(headless=not args.show_browser,
+                                           **({"executable_path": args.chromium_executable} if args.chromium_executable else {}))
+        context, gate = await guarded_context(browser, policy, tuple(args.resource_domain))
         page = await context.new_page()
         try:
             result = await Agent(PlaywrightBrowser(page, policy), Ollama(args.model, args.ollama_url),
@@ -112,6 +104,9 @@ def main():
     run.add_argument("--url", required=True)
     run.add_argument("--allow-domain", action="append", required=True)
     run.add_argument("--model", default="llama3.2:3b")
+    run.add_argument("--resource-domain", action="append", default=[],
+                     help="Explicitly allow third-party subresources; never authorizes navigation")
+    run.add_argument("--chromium-executable", help="Optional Chromium binary path")
     run.add_argument("--ollama-url", default="http://127.0.0.1:11434/api/chat")
     run.add_argument("--receipts", default="proofbrowse-receipts.jsonl")
     run.add_argument("--max-steps", type=int, default=12)
