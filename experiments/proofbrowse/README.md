@@ -43,3 +43,40 @@ python -m unittest discover -s tests -v
 ## Roadmap
 
 Next: browser integration smoke tests, evidence spans with stable DOM references, sandboxed network enforcement, model eval against benchmark websites, and side-by-side comparison with browser-use on fixed tasks.
+
+
+## Repeatable Browser Use comparison (v0.2)
+
+The `benchmark/` harness evaluates ProofBrowse and Browser Use against **identical
+read-only public web tasks**. Both use the same Ollama checkpoint by default.
+There are no precomputed performance claims: run both agents and review
+`benchmark-results/report.json` for task correctness and wall-clock timings.
+
+```bash
+# Validate the fixture list without contacting a model or the web:
+python -m benchmark.run --dry-run
+
+# From the experiments/proofbrowse directory, with Ollama serving llama3.2:3b:
+python -m pip install -e '.[browser]'
+python -m pip install 'browser-use==1.0.5'  # comparison agent, optional
+python -m playwright install chromium
+ollama pull llama3.2:3b
+python -m benchmark.run --agent both --model llama3.2:3b
+```
+
+These are three *smoke-test* fixtures, not a comprehensive leaderboard. A
+fairer full study should include many independent websites, repeated runs,
+model calls and token accounting, and controlled browser versions. Browser
+Use's prompts and internal call budgets may differ even when checkpoint
+weights match. Missing packages, timeouts, and failed tasks appear explicitly
+in the report; they are not counted as wins. Neither agent should receive
+credentials for these tests.
+
+### Verification hardening in v0.2
+
+- A final **answer must appear as a complete token/phrase within the cited
+  observed quote**; previously, a genuine quote could accompany an unrelated
+  fabricated answer. This makes answers extractive by design, not a proof of
+  factual truth or safe handling of hostile pages.
+- Navigation via links rejects `javascript:` and other non-HTTP(S) schemes
+  before Playwright attempts to navigate.

@@ -126,11 +126,23 @@ class Agent:
             action = str(proposed.get("action", ""))
             if action == "finish":
                 quote = str(proposed.get("quote", "")).strip()
-                if len(quote) < 8 or normalized(quote) not in normalized(before.get("text", "")):
-                    self.receipts.write({"step": step, "action": action, "status": "refused", "reason": "quote not found in observed page"})
-                    history.append({"action": action, "status": "refused: quote not found"})
+                answer = str(proposed.get("answer", "")).strip()
+                observed = normalized(before.get("text", ""))
+                quote_norm = normalized(quote)
+                answer_norm = normalized(answer)
+                # An observed quotation alone is not enough: the model previously
+                # could attach any invented answer to a genuine page excerpt.
+                # V0.2 intentionally requires *extractive* answers. Word boundaries
+                # prevent matching '42' inside '142'. This is not semantic proof.
+                answer_in_quote = bool(answer_norm and re.search(
+                    r"(?<!\w)" + re.escape(answer_norm) + r"(?!\w)", quote_norm))
+                if len(quote) < 8 or quote_norm not in observed or not answer_in_quote:
+                    reason = ("quote not found in observed page" if len(quote) < 8 or quote_norm not in observed
+                              else "answer not supported by quoted excerpt")
+                    self.receipts.write({"step": step, "action": action, "status": "refused", "reason": reason})
+                    history.append({"action": action, "status": "refused: " + reason})
                     continue
-                result = {"answer": str(proposed.get("answer", "")), "source": before["url"], "quote": quote}
+                result = {"answer": answer, "source": before["url"], "quote": quote}
                 self.receipts.write({"step": step, "action": action, "status": "grounded", "source": before["url"], "quote": quote})
                 return result
             try:

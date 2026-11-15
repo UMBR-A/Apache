@@ -1,0 +1,23 @@
+[
+  {
+    "id": "example-heading",
+    "start_url": "https://example.com/",
+    "task": "What is the exact main heading? Answer with only the heading text.",
+    "expected": "Example Domain",
+    "allowed_domains": ["example.com"]
+  },
+  {
+    "id": "example-org-heading",
+    "start_url": "https://example.org/",
+    "task": "What is the exact main heading? Answer with only the heading text.",
+    "expected": "Example Domain",
+    "allowed_domains": ["example.org"]
+  },
+  {
+    "id": "iana-reserved-example",
+    "start_url": "https://www.iana.org/domains/reserved",
+    "task": "Give one exact example domain ending in .com on IANA's reserved domains page. Answer with only the domain.",
+    "expected": "example.com",
+    "allowed_domains": ["iana.org"]
+  }
+]

@@ -68,6 +68,38 @@ class ProofBrowseTests(unittest.TestCase):
                 asyncio.run(Agent(FakeBrowser(), model, Policy(("example.org",), max_steps=1), Receipts(path)).run("Q", "https://example.org"))
             self.assertIn('"status":"refused"', path.read_text())
 
+    def test_real_quote_cannot_support_fabricated_answer(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "events.jsonl"
+            # The page genuinely contains the quotation, but not the answer.
+            model = SequenceModel({"action":"finish", "answer":"99", "quote":"This page says the answer is 42"})
+            with self.assertRaises(Refused):
+                asyncio.run(Agent(FakeBrowser(), model, Policy(("example.org",), max_steps=1), Receipts(path)).run("Find the answer", "https://example.org"))
+            self.assertIn("answer not supported by quoted excerpt", path.read_text())
+
+    def test_answer_token_boundary(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "events.jsonl"
+            model = SequenceModel({"action":"finish", "answer":"2", "quote":"This page says the answer is 42"})
+            with self.assertRaises(Refused):
+                asyncio.run(Agent(FakeBrowser(), model, Policy(("example.org",), max_steps=1), Receipts(path)).run("Find the answer", "https://example.org"))
+
+    def test_javascript_href_blocked(self):
+        from proofbrowse.__main__ import PlaywrightBrowser
+        class Link:
+            async def get_attribute(self, attribute, timeout=0):
+                return "javascript:alert(1)"
+        class Page:
+            url = "https://example.org/"
+            visited = False
+            def get_by_role(self, *args, **kwargs): return Link()
+            async def goto(self, *args, **kwargs):
+                self.visited = True
+        page = Page()
+        with self.assertRaises(Refused):
+            asyncio.run(PlaywrightBrowser(page, Policy(("example.org",))).click_link("Bad link"))
+        self.assertFalse(page.visited)
+
     def test_write_approval_and_redaction(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "events.jsonl"

@@ -39,8 +39,8 @@ class Ollama:
 
 
 class PlaywrightBrowser:
-    def __init__(self, page):
-        self.page = page
+    def __init__(self, page, policy: Policy):
+        self.page, self.policy = page, policy
 
     async def observe(self):
         text = (await self.page.locator("body").inner_text(timeout=10000))[:6000]
@@ -59,6 +59,8 @@ class PlaywrightBrowser:
         if not href:
             raise Refused("Link has no navigable href")
         target = urljoin(self.page.url, href)
+        # javascript: and other non-HTTP hrefs must never reach page.goto().
+        self.policy.check_url(target)
         await self.page.goto(target, wait_until="domcontentloaded", timeout=30000)
 
     async def fill(self, selector, value):
@@ -95,7 +97,7 @@ async def execute(args):
         await context.route("**/*", guard)
         page = await context.new_page()
         try:
-            result = await Agent(PlaywrightBrowser(page), Ollama(args.model, args.ollama_url),
+            result = await Agent(PlaywrightBrowser(page, policy), Ollama(args.model, args.ollama_url),
                                  policy, Receipts(args.receipts), approval=approve if args.interactive else None).run(args.task, args.url)
             print(json.dumps(result, indent=2))
         finally:
