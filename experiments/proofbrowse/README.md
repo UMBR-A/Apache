@@ -119,3 +119,11 @@ python -m benchmark.run --dry-run
 ProofBrowse's benchmark still needs a real accessible Chromium + Ollama
 instance to measure live task accuracy. A dry run does **not** count as an
 agent benchmark.
+
+## Automated GitHub CI
+
+A dedicated `.github/workflows/proofbrowse.yml` workflow runs on ProofBrowse
+pull-request changes. It exercises offline tests on Python 3.10, 3.12 and 3.13,
+validates benchmark input with `--dry-run`, and runs the real Chromium DOM
+smoke test with Playwright-installed Chromium. It does not pull a language
+model, use private credentials, or claim a successful browser-agent benchmark.
